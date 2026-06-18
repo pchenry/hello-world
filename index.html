@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hello World</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #000;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .stage {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(3rem, 10vw, 9rem);
+      font-weight: 900;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg,
+        #ff00cc, #ff6600, #ffcc00, #00ff99, #00ccff, #cc00ff, #ff00cc);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 4s ease infinite, pulse 2s ease-in-out infinite;
+      text-shadow: none;
+      filter: drop-shadow(0 0 40px rgba(255,0,204,0.6));
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 30px rgba(255,0,204,0.5)); }
+      50%       { transform: scale(1.04); filter: drop-shadow(0 0 70px rgba(0,204,255,0.9)); }
+    }
+
+    .sub {
+      margin-top: 1.2rem;
+      font-size: clamp(1rem, 3vw, 1.6rem);
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      animation: fadeSlide 1.2s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 3px;
+      height: 1.1em;
+      background: #00ccff;
+      margin-left: 4px;
+      vertical-align: middle;
+      animation: blink 0.8s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .orbs {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: drift linear infinite;
+    }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      33%  { transform: translate(60px, -80px) scale(1.15); }
+      66%  { transform: translate(-40px, 40px) scale(0.9); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="orbs" id="orbs"></div>
+
+<div class="stage">
+  <h1 id="title"></h1>
+  <p class="sub" style="animation-delay:.4s">Welcome to the future<span class="cursor"></span></p>
+</div>
+
+<script>
+  /* ── Typewriter ── */
+  const text = "Hello, World!";
+  const el = document.getElementById("title");
+  let i = 0;
+  (function type() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i++);
+      setTimeout(type, 80);
+    }
+  })();
+
+  /* ── Floating orbs ── */
+  const colors = ["#ff00cc","#00ccff","#ffcc00","#00ff99","#ff6600","#cc00ff"];
+  const orbsEl = document.getElementById("orbs");
+  colors.forEach((c, idx) => {
+    const o = document.createElement("div");
+    o.className = "orb";
+    const size = 220 + idx * 60;
+    Object.assign(o.style, {
+      width: size + "px", height: size + "px",
+      background: c,
+      left: (10 + idx * 14) + "%",
+      top:  (5  + idx * 12) + "%",
+      animationDuration: (8 + idx * 3) + "s",
+      animationDelay:    (-idx * 2) + "s",
+    });
+    orbsEl.appendChild(o);
+  });
+
+  /* ── Particle canvas ── */
+  const cv = document.getElementById("c");
+  const ctx = cv.getContext("2d");
+  let W, H, particles = [];
+
+  function resize() {
+    W = cv.width  = window.innerWidth;
+    H = cv.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  class Particle {
+    constructor() { this.reset(true); }
+    reset(initial) {
+      this.x  = Math.random() * W;
+      this.y  = initial ? Math.random() * H : H + 10;
+      this.r  = Math.random() * 2 + 0.5;
+      this.vx = (Math.random() - 0.5) * 0.5;
+      this.vy = -(Math.random() * 1.2 + 0.3);
+      this.alpha = Math.random() * 0.6 + 0.2;
+      this.hue = Math.random() * 360;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.hue = (this.hue + 0.5) % 360;
+      if (this.y < -10) this.reset(false);
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.fillStyle = `hsl(${this.hue},100%,70%)`;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  for (let n = 0; n < 180; n++) particles.push(new Particle());
+
+  /* Mouse-repel */
+  let mx = -9999, my = -9999;
+  window.addEventListener("mousemove", e => { mx = e.clientX; my = e.clientY; });
+
+  (function loop() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      const dx = p.x - mx, dy = p.y - my;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 100) {
+        p.x += dx / dist * 2;
+        p.y += dy / dist * 2;
+      }
+      p.update();
+      p.draw();
+    });
+    requestAnimationFrame(loop);
+  })();
+</script>
+</body>
+</html>
